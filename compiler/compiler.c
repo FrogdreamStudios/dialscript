@@ -123,10 +123,18 @@ char compile(const char *filename) {
         }
 
         // Unknown line
-        printf("Error at line %d: Unknown syntax\n", line_num);
+        printf("Error at line %d! Unknown syntax\n", line_num);
         error = 1;
     }
 
     fclose(file);
     return error;
+}
+
+void print_result(char result) {
+    if (result == 0) {
+        printf("\033[32mCompilation successful.\033[0m\n");
+    } else {
+        printf("\033[31mCompilation failed.\033[0m\n");
+    }
 }

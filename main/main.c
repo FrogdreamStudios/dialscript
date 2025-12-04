@@ -11,11 +11,7 @@ int main(int const argc, char *argv[]) {
 
     const char *filename = argv[1];
     const char result = compile(filename);
-    if (result == 0) {
-        printf("Compilation successful.\n");
-    } else {
-        printf("Compilation failed.\n");
-    }
+    print_result(result);
     return result;
 }
 
