@@ -29,22 +29,26 @@ int main(int const argc, char *argv[]) {
 
     // Check filename
     if (!filename) {
-        printf("Error! No input file specified.\n");
-        hello();
+        printf("\033[1;31mError:\033[0m no input file specified\n");
+        return 1;
+    }
+
+    // Check if filename ends with .ds
+    const size_t len = strlen(filename);
+    if (len < 3 || strcmp(filename + len - 3, ".ds") != 0) {
+        printf("\033[1;31mError:\033[0m only .ds files are supported\n");
         return 1;
     }
 
     // Compile normally
     const char result = compile(filename, mode);
-    print_result(result);
     return result;
 }
 
 // Usage info
 void hello(void) {
     printf("Hello, this is DialScript.\n"
-        "Usage: dialscript [options] <filename>\n"
+        "Usage: dialscript [options] <filename.ds>\n"
         "Options:\n"
-        "  -v, --verbose    Enable verbose mode\n"
-        "To use it, please refer to the documentation.\n");
+        "  -v, --verbose    Enable verbose mode\n");
 }

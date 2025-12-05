@@ -41,7 +41,7 @@ char compile(const char *filename, const int verbose) {
 
     FILE *f = fopen(path, "r");
     if (!f) {
-        fprintf(stderr, "Cannot open: %s\n", filename);
+        fprintf(stderr, "\033[1;31mError:\033[0m cannot open file %s. Does it exist?\n", path);
         return 1;
     }
 
@@ -84,7 +84,7 @@ char compile(const char *filename, const int verbose) {
                     const int bad = next.type != LINE_DIALOG_HEADER && next.type != LINE_COMMENT;
                     free_parsed_line(&next);
                     if (bad)
-                        fail("Empty line inside dialog block", "Remove empty lines between dialog lines");
+                        fail("Empty line inside dialog block", "remove empty lines between dialog lines");
                 }
                 if (verbose) verbose_empty_line(line_num);
                 break;
@@ -95,9 +95,9 @@ char compile(const char *filename, const int verbose) {
 
             case LINE_SCENE:
                 if (has_scene)
-                    fail("Only one [Scene.X] allowed", "Remove extra scene declarations");
+                    fail("Only one [Scene.X] allowed", "remove extra scene declarations");
                 else if (p.number <= 0)
-                    fail_at("Scene number must be > 0", "Use [Scene.1], [Scene.2], etc.", 7);
+                    fail_at("Scene number must be > 0", "use [Scene.1], [Scene.2], etc.", 7);
                 else {
                     scene = p.number;
                     dialog = 0;
@@ -109,9 +109,9 @@ char compile(const char *filename, const int verbose) {
 
             case LINE_DIALOG_HEADER:
                 if (!scene)
-                    fail("Dialog without [Scene.X]", "Add [Scene.1] before this dialog");
+                    fail("Dialog without [Scene.X]", "add [Scene.1] before this dialog");
                 else if (p.number <= 0)
-                    fail_at("Dialog number must be > 0", "Use [Dialog.1], [Dialog.2], etc.", 8);
+                    fail_at("Dialog number must be > 0", "use [Dialog.1], [Dialog.2], etc.", 8);
                 else {
                     dialog = 1;
                     if (verbose) verbose_dialog(line_num, p.number);
@@ -120,11 +120,11 @@ char compile(const char *filename, const int verbose) {
 
             case LINE_LEVEL:
                 if (!scene)
-                    fail("Level outside scene", "Move Level: inside [Scene.X] block");
+                    fail("Level outside scene", "move Level: x inside [Scene.X] block");
                 else if (dialog)
-                    fail("Level after dialog", "Move Level: before [Dialog.X]");
+                    fail("Level after dialog", "move Level: x before [Dialog.X]");
                 else if (has_level)
-                    fail("Duplicate Level", "Remove extra Level definition");
+                    fail("Duplicate Level", "remove extra Level definition");
                 else {
                     has_level = 1;
                     if (verbose) verbose_level(line_num, p.value);
@@ -133,11 +133,11 @@ char compile(const char *filename, const int verbose) {
 
             case LINE_LOCATION:
                 if (!scene)
-                    fail("Location outside scene", "Move Location: inside [Scene.X] block");
+                    fail("Location outside scene", "move Location: x inside [Scene.X] block");
                 else if (dialog)
-                    fail("Location after dialog", "Move Location: before [Dialog.X]");
+                    fail("Location after dialog", "move Location: x before [Dialog.X]");
                 else if (has_location)
-                    fail("Duplicate Location", "Remove extra Location definition");
+                    fail("Duplicate Location", "remove extra Location definition");
                 else {
                     has_location = 1;
                     if (verbose) verbose_location(line_num, p.value);
@@ -146,11 +146,11 @@ char compile(const char *filename, const int verbose) {
 
             case LINE_CHARACTERS:
                 if (!scene)
-                    fail("Characters outside scene", "Move Characters: inside [Scene.X] block");
+                    fail("Characters outside scene", "move Characters: inside [Scene.X] block");
                 else if (dialog)
-                    fail("Characters after dialog", "Move Characters: before [Dialog.X]");
+                    fail("Characters after dialog", "move Characters: before [Dialog.X]");
                 else if (has_chars)
-                    fail("Duplicate Characters", "Remove extra Characters definition");
+                    fail("Duplicate Characters", "remove extra Characters definition");
                 else {
                     strncpy(characters, p.value, 1023);
                     has_chars = 1;
@@ -160,52 +160,54 @@ char compile(const char *filename, const int verbose) {
 
             case LINE_DIALOG:
                 if (!dialog) {
-                    fail("Stray dialog line", "Add [Dialog.1] before this line");
+                    fail("Stray dialog line", "add [Dialog.1] before this line");
                     break;
                 }
 
                 if (characters[0] && !char_known(p.name, characters))
-                    fail("Unknown character", "Add this character to Characters");
+                    fail("Unknown character", "add this character to Characters");
 
                 if (p.meta && !strchr(p.meta, '}'))
-                    fail_at("Missing '}' in metadata", "Close metadata with '}'", (int)(p.meta - lines[i]));
+                    fail_at("Missing '}' in metadata", "close metadata with '}'", (int)(p.meta - lines[i]));
 
                 if (verbose) verbose_dialog_line(line_num, p.name, p.text, p.meta);
                 break;
 
             // Errors
-            case LINE_ERROR_EMPTY_NAME: fail("Empty name before ':'", "Add character name, e.g. Alan: Hello");
+            case LINE_ERROR_EMPTY_NAME: fail("Empty name before ':'", "add character name, e.g. Alan: Hello");
                 break;
-            case LINE_ERROR_MISSING_COLON: fail("Missing ':' in dialog", "Use format: Name: Text");
+            case LINE_ERROR_MISSING_COLON: fail("Missing ':' in dialog", "use format: Name: Text");
                 break;
-            case LINE_ERROR_INVALID_DIALOG_FORMAT: fail("Wrong dialog format", "Use format: Name: Text");
+            case LINE_ERROR_INVALID_DIALOG_FORMAT: fail("Wrong dialog format", "use format: Name: Text");
                 break;
-            case LINE_ERROR_TYPO_SCENE: fail_at("Did you mean [Scene.N]?", "Check spelling", 1);
+
+            // TODO: improve this error message
+            case LINE_ERROR_TYPO_SCENE: fail_at("Did you mean [Scene.N]?", "check spelling", 1);
                 break;
-            case LINE_ERROR_TYPO_DIALOG: fail_at("Did you mean [Dialog.N]?", "Check spelling", 1);
+            case LINE_ERROR_TYPO_DIALOG: fail_at("Did you mean [Dialog.N]?", "check spelling", 1);
                 break;
-            case LINE_ERROR_TYPO_LEVEL: fail("Did you mean 'Level:'?", "Check spelling");
+            case LINE_ERROR_TYPO_LEVEL: fail("Did you mean 'Level:'?", "check spelling");
                 break;
-            case LINE_ERROR_TYPO_LOCATION: fail("Did you mean 'Location:'?", "Check spelling");
+            case LINE_ERROR_TYPO_LOCATION: fail("Did you mean 'Location:'?", "check spelling");
                 break;
-            case LINE_ERROR_TYPO_CHARACTERS: fail("Did you mean 'Characters:'?", "Check spelling");
+            case LINE_ERROR_TYPO_CHARACTERS: fail("Did you mean 'Characters:'?", "check spelling");
                 break;
-            case LINE_ERROR_UNCLOSED_BRACKET: fail_at("Missing ']'", "Close header with ']'", (int)strlen(lines[i]));
+            case LINE_ERROR_UNCLOSED_BRACKET: fail_at("Missing ']'", "close header with ']'", (int)strlen(lines[i]));
                 break;
             case LINE_ERROR_EXTRA_SPACE_IN_HEADER: fail("Extra space in header",
-                                                        "Use [Scene.1] or [Dialog.1] without spaces");
+                                                        "use [Scene.1] or [Dialog.1] without spaces");
                 break;
             case LINE_ERROR_EXTRA_SPACE_IN_METADATA: fail("Extra space before ':'",
-                                                          "Use 'Level:', 'Location:', 'Characters:' without spaces");
+                                                          "use 'Level:', 'Location:', 'Characters:' without spaces");
                 break;
             case LINE_ERROR_LEADING_SPACE: fail("Leading space in dialog line",
-                                                "Character name must start at the beginning of the line");
+                                                "character name must start at the beginning of the line");
                 break;
             case LINE_UNKNOWN:
                 if (dialog)
-                    fail("Invalid line in dialog", "Use format: Name: Text");
+                    fail("Invalid line in dialog", "use format: Name: Text");
                 else
-                    fail("Unknown syntax", "Check spelling or use: [Scene.N], [Dialog.N], Name: Text");
+                    fail("Unknown syntax", "check spelling or use: [Scene.N], [Dialog.N], Name: Text");
                 break;
 
             default:
@@ -217,13 +219,13 @@ char compile(const char *filename, const int verbose) {
 
     // Final checks (missing of required parts)
     if (!has_scene)
-        fail_final("Missing [Scene.X]", "Add [Scene.1] at the beginning of file");
+        fail_final("Missing [Scene.X]", "add [Scene.1] at the beginning of file");
     if (!has_level)
-        fail_final("Missing Level", "Add 'Level: N' after [Scene.X]");
+        fail_final("Missing Level", "add 'Level: N' after [Scene.X]");
     if (!has_location)
-        fail_final("Missing Location", "Add 'Location: name' after [Scene.X]");
+        fail_final("Missing Location", "add 'Location: name' after [Scene.X]");
     if (!has_chars)
-        fail_final("Missing Characters", "Add 'Characters: Name1, Name2' after [Scene.X]");
+        fail_final("Missing Characters", "add 'Characters: Name1, Name2' after [Scene.X]");
 
 // Undefine error reporting macros
 #undef fail
