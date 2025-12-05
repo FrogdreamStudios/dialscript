@@ -39,12 +39,12 @@ static int is_typo(const char *input, const char *expected) {
     return (matches * 100 / len_exp) > 60;
 }
 
-static char* skip_spaces(char *s) {
+static char *skip_spaces(char *s) {
     while (*s && isspace(*s)) s++;
     return s;
 }
 
-static char* trim_end(char *s) {
+static char *trim_end(char *s) {
     int len = strlen(s);
     while (len > 0 && isspace(s[len - 1])) {
         s[--len] = '\0';
@@ -84,20 +84,38 @@ ParsedLine parse_line(char *line) {
     }
 
     // Metadata: Level, Location, Characters
-    if (strncmp(line, "Level:", 6) == 0) {
-        pl.type = LINE_LEVEL;
-        pl.value = skip_spaces(line + 6);
-        return pl;
+    char *p = line;
+    if (strncasecmp(p, "level", 5) == 0 && (p[5] == ':' || isspace(p[5]))) {
+        p += 5;
+        p = skip_spaces(p);
+        if (*p == ':') {
+            p++;
+            pl.value = skip_spaces(p);
+            pl.type = LINE_LEVEL;
+            return pl;
+        }
     }
-    if (strncmp(line, "Location:", 9) == 0) {
-        pl.type = LINE_LOCATION;
-        pl.value = skip_spaces(line + 9);
-        return pl;
+    p = line;
+    if (strncasecmp(p, "location", 8) == 0 && (p[8] == ':' || isspace(p[8]))) {
+        p += 8;
+        p = skip_spaces(p);
+        if (*p == ':') {
+            p++;
+            pl.value = skip_spaces(p);
+            pl.type = LINE_LOCATION;
+            return pl;
+        }
     }
-    if (strncmp(line, "Characters:", 11) == 0) {
-        pl.type = LINE_CHARACTERS;
-        pl.value = skip_spaces(line + 11);
-        return pl;
+    p = line;
+    if (strncasecmp(p, "characters", 10) == 0 && (p[10] == ':' || isspace(p[10]))) {
+        p += 10;
+        p = skip_spaces(p);
+        if (*p == ':') {
+            p++;
+            pl.value = skip_spaces(p);
+            pl.type = LINE_CHARACTERS;
+            return pl;
+        }
     }
 
     // Dialog line: Name: Text {meta}
@@ -107,7 +125,7 @@ ParsedLine parse_line(char *line) {
 
     // If colon is inside metadata block or doesn't exist before it, it's an error
     if (colon && meta_start && colon > meta_start) {
-        colon = NULL;  // Colon inside metadata doesn't count
+        colon = NULL; // Colon inside metadata doesn't count
     }
 
     if (colon) {
@@ -202,5 +220,5 @@ ParsedLine parse_line(char *line) {
 }
 
 void free_parsed_line(const ParsedLine *pl) {
-    (void)pl;
+    (void) pl;
 }

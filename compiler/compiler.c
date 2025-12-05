@@ -24,7 +24,6 @@ static int is_valid_character(const char *name, const char *characters) {
 
     char *token = strtok(chars_copy, ",");
     while (token) {
-        // Trim whitespace
         while (*token && isspace(*token)) token++;
         char *end = token + strlen(token) - 1;
         while (end > token && isspace(*end)) *end-- = '\0';
@@ -53,21 +52,15 @@ char compile(const char *filename, int verbose) {
     char lines[1024][1024];
     char original_lines[1024][1024];
     int total_lines = 0;
-    int max_width = 0;
 
     while (fgets(lines[total_lines], sizeof(lines[total_lines]), file)) {
         lines[total_lines][strcspn(lines[total_lines], "\n")] = 0;
         strcpy(original_lines[total_lines], lines[total_lines]);
-        const int len = (int)strlen(lines[total_lines]);
-        if (len > max_width) max_width = len;
         total_lines++;
     }
     fclose(file);
 
-    int line_width = 7 + max_width;
-    if (line_width < 40) line_width = 40;
-
-    if (verbose) verbose_header(fullpath, line_width);
+    if (verbose) verbose_header(fullpath);
 
     int in_scene = 0;
     int in_dialog = 0;
@@ -89,7 +82,8 @@ char compile(const char *filename, int verbose) {
 
             case LINE_SCENE:
                 if (pl.number <= 0) {
-                    report_error(verbose, line_num, "Invalid scene number", "Scene numbers must be positive, e.g. [Scene.1]", original_lines[i], 7);
+                    report_error(verbose, line_num, "Invalid scene number",
+                                 "Scene numbers must be positive, e.g. [Scene.1]", original_lines[i], 7);
                     error++;
                 } else {
                     in_scene = pl.number;
@@ -103,7 +97,8 @@ char compile(const char *filename, int verbose) {
                 if (!in_scene) {
                     REPORT_ERROR("Dialog outside scene", "Did you mean to add [Scene.1] before this?");
                 } else if (pl.number <= 0) {
-                    report_error(verbose, line_num, "Invalid dialog number", "Dialog numbers must be positive, e.g. [Dialog.1]", original_lines[i], 8);
+                    report_error(verbose, line_num, "Invalid dialog number",
+                                 "Dialog numbers must be positive, e.g. [Dialog.1]", original_lines[i], 8);
                     error++;
                 } else {
                     in_dialog = 1;
@@ -142,18 +137,18 @@ char compile(const char *filename, int verbose) {
                     REPORT_ERROR("Dialog line outside dialog block", "Did you mean to add [Dialog.1] before this?");
                 } else {
                     int line_has_error = 0;
-                    // Check if character is in the characters list
                     if (characters[0] != '\0' && !is_valid_character(pl.name, characters)) {
                         REPORT_ERROR("Unknown character", "This character is not in the Characters list");
                         line_has_error++;
                     }
                     if (pl.meta && !strchr(pl.meta, '}')) {
-                        int meta_pos = (int)(pl.meta - lines[i]);
-                        report_error(verbose, line_num, "Unclosed metadata", "Missing '}' at end of metadata block", original_lines[i], meta_pos);
+                        int meta_pos = (int) (pl.meta - lines[i]);
+                        report_error(verbose, line_num, "Unclosed metadata", "Missing '}' at end of metadata block",
+                                     original_lines[i], meta_pos);
                         error++;
                         line_has_error++;
                     }
-                    if (verbose && !line_has_error) verbose_dialog_line(line_num, pl.name, pl.text, pl.meta, line_width);
+                    if (verbose && !line_has_error) verbose_dialog_line(line_num, pl.name, pl.text, pl.meta);
                 }
                 break;
 
@@ -162,7 +157,8 @@ char compile(const char *filename, int verbose) {
                     // Inside dialog block, must have "Name: Text" format
                     REPORT_ERROR("Missing colon in dialog", "Dialog lines must be: Name: Text");
                 } else {
-                    REPORT_ERROR("Unknown syntax", "Check spelling or use valid format: [Scene.N], [Dialog.N], Name: Text");
+                    REPORT_ERROR("Unknown syntax",
+                                 "Check spelling or use valid format: [Scene.N], [Dialog.N], Name: Text");
                 }
                 break;
 
@@ -183,12 +179,14 @@ char compile(const char *filename, int verbose) {
                 break;
 
             case LINE_ERROR_TYPO_SCENE:
-                report_error(verbose, line_num, "Invalid header format", "Did you mean [Scene.N]?", original_lines[i], 1);
+                report_error(verbose, line_num, "Invalid header format", "Did you mean [Scene.N]?", original_lines[i],
+                             1);
                 error++;
                 break;
 
             case LINE_ERROR_TYPO_DIALOG:
-                report_error(verbose, line_num, "Invalid header format", "Did you mean [Dialog.N]?", original_lines[i], 1);
+                report_error(verbose, line_num, "Invalid header format", "Did you mean [Dialog.N]?", original_lines[i],
+                             1);
                 error++;
                 break;
 
@@ -197,7 +195,8 @@ char compile(const char *filename, int verbose) {
                 break;
 
             case LINE_ERROR_TYPO_LOCATION:
-                REPORT_ERROR("Unknown keyword", "Did you mean 'Location:'?");
+                report_error(verbose, line_num, "Unknown keyword", "Did you mean 'Location:'?", original_lines[i], 0);
+                error++;
                 break;
 
             case LINE_ERROR_TYPO_CHARACTERS:
@@ -216,7 +215,7 @@ char compile(const char *filename, int verbose) {
     }
 
     if (verbose) {
-        verbose_footer(line_width, total_lines, error);
+        verbose_footer(total_lines, error);
     } else {
         brief_result(total_lines, error);
     }
@@ -225,5 +224,5 @@ char compile(const char *filename, int verbose) {
 }
 
 void print_result(const char result) {
-    (void)result;
+    (void) result;
 }

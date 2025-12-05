@@ -15,19 +15,19 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 # Source files
 set(SOURCES
-    main/main.c
-    compiler/compiler.c
-    compiler/parser.c
-    compiler/verbose.c
-    compiler/fixer.c
+        main/main.c
+        compiler/compiler.c
+        compiler/parser.c
+        compiler/verbose.c
+        compiler/fixer.c
 )
 
 # Headers
 set(HEADERS
-    main/main.h
-    compiler/compiler.h
-    compiler/parser.h
-    compiler/verbose.h
+        main/main.h
+        compiler/compiler.h
+        compiler/parser.h
+        compiler/verbose.h
 )
 
 # Executable
@@ -35,7 +35,7 @@ add_executable(dialscript ${SOURCES} ${HEADERS})
 
 # Custom target for running
 add_custom_target(run
-    COMMAND dialscript ${ARGS}
-    DEPENDS dialscript
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMAND dialscript ${ARGS}
+        DEPENDS dialscript
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
 )

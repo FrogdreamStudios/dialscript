@@ -34,11 +34,11 @@ typedef enum {
 // Parsed line data
 typedef struct {
     LineType type;
-    int number;     // Scene or dialog number
-    char *value;    // For metadata (Level, Location, Characters)
-    char *name;     // Character name in dialog
-    char *text;     // Dialog text
-    char *meta;     // Metadata block {..}
+    int number; // Scene or dialog number
+    char *value; // For metadata (Level, Location, Characters)
+    char *name; // Character name in dialog
+    char *text; // Dialog text
+    char *meta; // Metadata block {..}
 } ParsedLine;
 
 // Parse a single line and return its type and data
