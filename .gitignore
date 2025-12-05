@@ -1,2 +1,3 @@
-.objects
-.idea
+build/
+cmake-build-*/
+.idea/
