@@ -5,3 +5,4 @@
 #pragma once
 
 void hello(void);
+void example(void);

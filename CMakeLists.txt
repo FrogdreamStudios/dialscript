@@ -8,7 +8,12 @@ project(dialscript C)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-add_compile_options(-Wall -Wextra)
+# Compiler warnings (platform-specific)
+if(MSVC)
+    add_compile_options(/W4)
+else()
+    add_compile_options(-Wall -Wextra)
+endif()
 
 # Output directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
@@ -31,6 +36,9 @@ set(HEADERS
 
 # Executable
 add_executable(dialscript ${SOURCES} ${HEADERS})
+
+# Install target
+install(TARGETS dialscript DESTINATION bin)
 
 # Custom target for running
 add_custom_target(run

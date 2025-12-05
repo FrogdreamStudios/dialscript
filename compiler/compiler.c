@@ -37,7 +37,7 @@ static int char_known(const char *name, const char *list) {
 // Main compile function
 char compile(const char *filename, const int verbose) {
     char path[1024];
-    snprintf(path, sizeof(path), "tests/%s", filename);
+    snprintf(path, sizeof(path), "%s", filename);
 
     FILE *f = fopen(path, "r");
     if (!f) {
