@@ -2,8 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // See: http://www.apache.org/licenses/LICENSE-2.0
 
-#ifndef DIALSCRIPT_PARSER_H
-#define DIALSCRIPT_PARSER_H
+#pragma once
 
 // Line types
 typedef enum {
@@ -28,23 +27,24 @@ typedef enum {
     LINE_ERROR_TYPO_DIALOG,
     LINE_ERROR_TYPO_LEVEL,
     LINE_ERROR_TYPO_LOCATION,
-    LINE_ERROR_TYPO_CHARACTERS
+    LINE_ERROR_TYPO_CHARACTERS,
+    LINE_ERROR_EXTRA_SPACE_IN_HEADER,
+    LINE_ERROR_EXTRA_SPACE_IN_METADATA,
+    LINE_ERROR_LEADING_SPACE
 } LineType;
 
 // Parsed line data
 typedef struct {
     LineType type;
-    int number; // Scene or dialog number
-    char *value; // For metadata (Level, Location, Characters)
-    char *name; // Character name in dialog
-    char *text; // Dialog text
-    char *meta; // Metadata block {..}
+    int number;     // Scene or dialog number
+    char *value;    // For metadata (Level, Location, Characters)
+    char *name;     // Character name in dialog
+    char *text;     // Dialog text
+    char *meta;     // Metadata block {..}
 } ParsedLine;
 
 // Parse a single line and return its type and data
-ParsedLine parse_line(char *line);
+ParsedLine parse_line(const char *line);
 
 // Free parsed line resources (if any allocated)
 void free_parsed_line(const ParsedLine *pl);
-
-#endif // DIALSCRIPT_PARSER_H

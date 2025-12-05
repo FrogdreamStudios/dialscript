@@ -2,8 +2,7 @@
 // Licensed under the Apache License, Version 2.0
 // See: http://www.apache.org/licenses/LICENSE-2.0
 
-#ifndef DIALSCRIPT_VERBOSE_H
-#define DIALSCRIPT_VERBOSE_H
+#pragma once
 
 void verbose_header(const char *fullpath);
 
@@ -32,5 +31,3 @@ void verbose_error_line(int line_num, const char *line_content);
 void brief_error(int line_num, const char *message, const char *hint, const char *line_content, int error_pos);
 
 void brief_result(int line_num, int error);
-
-#endif // DIALSCRIPT_VERBOSE_H

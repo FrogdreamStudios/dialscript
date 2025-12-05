@@ -7,169 +7,208 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <stdlib.h>
+#include <stdbool.h>
 
-// Helper: case-insensitive string compare
-static int strcasecmp_partial(const char *s1, const char *s2, size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        if (tolower(s1[i]) != tolower(s2[i])) return 1;
+// Skip whitespaces
+static inline char *skip_ws(const char *s) {
+    while (*s && isspace((unsigned char) *s)) s++;
+    return (char *) s;
+}
+
+// Right trim
+static inline char *rtrim(char *str) {
+    if (!str || !*str) return str;
+    char *end = str + strlen(str) - 1;
+    while (end >= str && isspace((unsigned char) *end)) *end-- = '\0';
+    return str;
+}
+
+// Case-insensitive string compare for n characters
+static inline bool strneq_ci(const char *a, const char *b, const size_t len) {
+    for (size_t i = 0; i < len; ++i) {
+        if (tolower((unsigned char) a[i]) != tolower((unsigned char) b[i])) return false;
+        if (!b[i]) return true;
     }
-    return 0;
+    return true;
 }
 
-// Helper: check for typos in keywords
-static int is_typo(const char *input, const char *expected) {
-    size_t len_in = strlen(input);
-    size_t len_exp = strlen(expected);
-
-    // Too different in length
-    if (len_in < len_exp - 2 || len_in > len_exp + 2) return 0;
-
-    // Case-insensitive exact match is not a typo
-    if (len_in == len_exp && strcasecmp_partial(input, expected, len_in) == 0) return 0;
-
-    // Count matching characters
-    int matches = 0;
-    size_t min_len = len_in < len_exp ? len_in : len_exp;
-    for (size_t i = 0; i < min_len; i++) {
-        if (tolower(input[i]) == tolower(expected[i])) matches++;
-    }
-
-    // If more than 60% match, it's probably a typo
-    return (matches * 100 / len_exp) > 60;
-}
-
-static char *skip_spaces(char *s) {
-    while (*s && isspace(*s)) s++;
-    return s;
-}
-
-static char *trim_end(char *s) {
-    int len = strlen(s);
-    while (len > 0 && isspace(s[len - 1])) {
-        s[--len] = '\0';
-    }
-    return s;
-}
-
-ParsedLine parse_line(char *line) {
+// Main parser
+ParsedLine parse_line(const char *line) {
     ParsedLine pl = {0};
+    pl.type = LINE_UNKNOWN;
+
+    char *s = skip_ws(line);
 
     // Empty line
-    if (line[0] == '\0') {
+    if (!*s) {
         pl.type = LINE_EMPTY;
         return pl;
     }
 
-    // Comment //
-    if (strncmp(line, "//", 2) == 0) {
+    // Comment
+    if (s[0] == '/' && s[1] == '/') {
         pl.type = LINE_COMMENT;
-        pl.value = line + 2;
+        pl.value = skip_ws(s + 2);
         return pl;
     }
 
-    // Scene header [Scene.x]
-    int num;
-    if (sscanf(line, "[Scene.%d]", &num) == 1) {
-        pl.type = LINE_SCENE;
-        pl.number = num;
+    // Headers
+    if (s[0] == '[') {
+        char *p = s + 1;
+        char *dot = NULL;
+        char *close = strchr(p, ']');
+
+        if (!close) {
+            pl.type = LINE_ERROR_UNCLOSED_BRACKET;
+            return pl;
+        }
+
+        // Find dot
+        for (char *t = p; t < close; ++t) {
+            if (*t == '.') {
+                dot = t;
+                break;
+            }
+        }
+
+        if (!dot || dot == p || dot + 1 == close) {
+            pl.type = LINE_ERROR_TYPO_SCENE;
+        } else {
+            const size_t prefix_len = dot - p;
+
+            if (strneq_ci(p, "scene", prefix_len)) {
+                int num;
+                if (sscanf(dot + 1, "%d", &num) == 1 && num > 0) {
+                    const char *after_num = skip_ws(dot + 1 + strspn(dot + 1, "0123456789"));
+                    if (after_num < close) {
+                        pl.type = LINE_ERROR_EXTRA_SPACE_IN_HEADER;
+                        return pl;
+                    }
+                    pl.type = LINE_SCENE;
+                    pl.number = num;
+                    return pl;
+                }
+            } else if (strneq_ci(p, "dialog", prefix_len)) {
+                int num;
+                if (sscanf(dot + 1, "%d", &num) == 1 && num > 0) {
+                    const char *after_num = skip_ws(dot + 1 + strspn(dot + 1, "0123456789"));
+                    if (after_num < close) {
+                        pl.type = LINE_ERROR_EXTRA_SPACE_IN_HEADER;
+                        return pl;
+                    }
+                    pl.type = LINE_DIALOG_HEADER;
+                    pl.number = num;
+                    return pl;
+                }
+            }
+        }
+
+        pl.type = LINE_ERROR_TYPO_SCENE;
+        if (strneq_ci(p, "dialog", 6)) pl.type = LINE_ERROR_TYPO_DIALOG;
         return pl;
     }
 
-    // Dialog header [Dialog.x]
-    if (sscanf(line, "[Dialog.%d]", &num) == 1) {
-        pl.type = LINE_DIALOG_HEADER;
-        pl.number = num;
-        return pl;
-    }
+    // Metadata
+    const char *colon = strchr(s, ':');
+    if (colon && colon > s) {
+        const size_t kw_len = colon - s;
 
-    // Metadata: Level, Location, Characters
-    char *p = line;
-    if (strncasecmp(p, "level", 5) == 0 && (p[5] == ':' || isspace(p[5]))) {
-        p += 5;
-        p = skip_spaces(p);
-        if (*p == ':') {
-            p++;
-            pl.value = skip_spaces(p);
+        if (strneq_ci(s, "level", kw_len) && kw_len == 5) {
             pl.type = LINE_LEVEL;
+            pl.value = skip_ws(colon + 1);
             return pl;
         }
-    }
-    p = line;
-    if (strncasecmp(p, "location", 8) == 0 && (p[8] == ':' || isspace(p[8]))) {
-        p += 8;
-        p = skip_spaces(p);
-        if (*p == ':') {
-            p++;
-            pl.value = skip_spaces(p);
+        if (strneq_ci(s, "location", kw_len) && kw_len == 8) {
             pl.type = LINE_LOCATION;
+            pl.value = skip_ws(colon + 1);
             return pl;
         }
-    }
-    p = line;
-    if (strncasecmp(p, "characters", 10) == 0 && (p[10] == ':' || isspace(p[10]))) {
-        p += 10;
-        p = skip_spaces(p);
-        if (*p == ':') {
-            p++;
-            pl.value = skip_spaces(p);
+        if (strneq_ci(s, "characters", kw_len) && kw_len == 10) {
             pl.type = LINE_CHARACTERS;
+            pl.value = skip_ws(colon + 1);
+            return pl;
+        }
+
+        // Typos in metadata keywords
+        // TODO: improve typo detection
+        if (strneq_ci(s, "leve", kw_len) || strneq_ci(s, "levl", kw_len)) {
+            pl.type = LINE_ERROR_TYPO_LEVEL;
+            return pl;
+        }
+        if (strneq_ci(s, "locatio", kw_len)) {
+            pl.type = LINE_ERROR_TYPO_LOCATION;
+            return pl;
+        }
+        if (strneq_ci(s, "character", kw_len)) {
+            pl.type = LINE_ERROR_TYPO_CHARACTERS;
             return pl;
         }
     }
 
-    // Dialog line: Name: Text {meta}
-    // Find the first colon, but it must be BEFORE any metadata block
-    char *meta_start = strchr(line, '{');
-    char *colon = strchr(line, ':');
+    // Dialog line
+    char *meta_start = strchr(s, '{');
+    char *real_colon = NULL;
 
-    // If colon is inside metadata block or doesn't exist before it, it's an error
-    if (colon && meta_start && colon > meta_start) {
-        colon = NULL; // Colon inside metadata doesn't count
+    // Find the real colon (before metadata)
+    if (meta_start) {
+        for (char *c = s; c < meta_start; ++c) {
+            if (*c == ':') {
+                real_colon = c;
+                break;
+            }
+        }
+    } else {
+        real_colon = strchr(s, ':');
     }
 
-    if (colon) {
-        // Check if there's a space after colon
-        char after_colon = *(colon + 1);
-        if (after_colon != ' ' && after_colon != '\0') {
+    if (real_colon) {
+        // Spaces? Well, we don't allow leading spaces
+        if (s != line && isspace((unsigned char) line[0])) {
+            pl.type = LINE_ERROR_LEADING_SPACE;
+            return pl;
+        }
+
+        // Detect missing space after colon
+        const char *after_colon = real_colon + 1;
+        if (*after_colon && !isspace((unsigned char) *after_colon)) {
             pl.type = LINE_ERROR_NO_SPACE_AFTER_COLON;
             return pl;
         }
 
-        *colon = '\0';
-        pl.name = skip_spaces(line);
-        trim_end(pl.name);
+        // Character name
+        *real_colon = '\0';
+        pl.name = s;
+        rtrim(pl.name);
 
-        pl.text = skip_spaces(colon + 1);
-
-        // Extract metadata
-        char *meta = strchr(pl.text, '{');
-        if (meta) {
-            // Check if metadata is at the end (nothing after closing brace except whitespace)
-            char *closing = strchr(meta, '}');
-            if (closing) {
-                char *after_meta = closing + 1;
-                while (*after_meta && isspace(*after_meta)) after_meta++;
-                if (*after_meta != '\0') {
-                    // There's text after metadata - error!
-                    pl.type = LINE_ERROR_META_NOT_AT_END;
-                    return pl;
-                }
-            }
-
-            pl.meta = meta;
-            // Trim text before metadata
-            char *text_end = meta - 1;
-            while (text_end > pl.text && isspace(*text_end)) text_end--;
-            *(text_end + 1) = '\0';
-        }
-
-        // Validate dialog line
-        if (strlen(pl.name) == 0) {
+        if (pl.name[0] == '\0') {
             pl.type = LINE_ERROR_EMPTY_NAME;
             return pl;
         }
-        if (strlen(pl.text) == 0) {
+
+        // Dialog text
+        pl.text = skip_ws(after_colon);
+
+        // Check for dialog metadata
+        if (meta_start) {
+            char *close = strchr(meta_start, '}');
+            if (!close) {
+                pl.type = LINE_ERROR_UNCLOSED_BRACKET;
+                pl.meta = meta_start;
+                return pl;
+            }
+            const char *after_meta = skip_ws(close + 1);
+            if (*after_meta) {
+                pl.type = LINE_ERROR_META_NOT_AT_END;
+                return pl;
+            }
+            // Trim text before metadata
+            char *text_end = meta_start - 1;
+            while (text_end > pl.text && isspace((unsigned char) *text_end)) text_end--;
+            *(text_end + 1) = '\0';
+            pl.meta = meta_start;
+        }
+
+        if (pl.text[0] == '\0') {
             pl.type = LINE_ERROR_EMPTY_TEXT;
             return pl;
         }
@@ -178,43 +217,7 @@ ParsedLine parse_line(char *line) {
         return pl;
     }
 
-    // Check for typos in headers
-    if (line[0] == '[') {
-        char header[64] = {0};
-        sscanf(line, "[%63[^.]", header);
-
-        if (is_typo(header, "Scene")) {
-            pl.type = LINE_ERROR_TYPO_SCENE;
-            return pl;
-        }
-        if (is_typo(header, "Dialog")) {
-            pl.type = LINE_ERROR_TYPO_DIALOG;
-            return pl;
-        }
-    }
-
-    // Check for typos in metadata keywords
-    char keyword[64] = {0};
-    char *colon_pos = strchr(line, ':');
-    if (colon_pos && (colon_pos - line) < 64) {
-        strncpy(keyword, line, colon_pos - line);
-        keyword[colon_pos - line] = '\0';
-        trim_end(keyword);
-
-        if (is_typo(keyword, "Level")) {
-            pl.type = LINE_ERROR_TYPO_LEVEL;
-            return pl;
-        }
-        if (is_typo(keyword, "Location")) {
-            pl.type = LINE_ERROR_TYPO_LOCATION;
-            return pl;
-        }
-        if (is_typo(keyword, "Characters")) {
-            pl.type = LINE_ERROR_TYPO_CHARACTERS;
-            return pl;
-        }
-    }
-
+    // Everything else is unknown
     pl.type = LINE_UNKNOWN;
     return pl;
 }

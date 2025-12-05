@@ -1,12 +1,13 @@
 // Test file with errors
 [Scene.1]
+Level: 2
 Location: Fores2
-Characters: Alan, Beth
+Characters: Alan, Alex A., Beth
 
 [Dialog.1]
-Alan: Hello
+ Alan: Hello
 Alan: lolfdsf
-Alan: No name here
+Alex D.: No name here
 Beth: Text
 
 [Dialog.2]

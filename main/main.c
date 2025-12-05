@@ -14,6 +14,7 @@ int main(int const argc, char *argv[]) {
         return 0;
     }
 
+    // Default settings
     int mode = MODE_QUIET;
     int fix_mode = 0;
     const char *filename = NULL;
@@ -29,21 +30,25 @@ int main(int const argc, char *argv[]) {
         }
     }
 
+    // Check filename
     if (!filename) {
         printf("Error! No input file specified.\n");
         hello();
         return 1;
     }
 
+    // Run in auto-fix mode
     if (fix_mode) {
         return auto_fix(filename);
     }
 
+    // Compile normally
     const char result = compile(filename, mode);
     print_result(result);
     return result;
 }
 
+// Usage info
 void hello(void) {
     printf("Hello, this is DialScript.\n"
         "Usage: dialscript [options] <filename>\n"

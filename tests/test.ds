@@ -12,7 +12,7 @@ Beth: How are you?
 Alan: I'm good, thanks {Emotion: grateful}
 Alan: What about you?
 Beth: I'm doing well too!
-Aln: Great to hear!
+Alan: Great to hear!
 Beth: Shall we proceed with our adventure? {Choices: Yes, No}
 Alan: Absolutely! {Choice: Yes}
 Beth: Maybe another time then... {Choice: No}
