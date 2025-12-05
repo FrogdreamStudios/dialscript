@@ -9,6 +9,18 @@
 #include <ctype.h>
 #include <stdlib.h>
 
+typedef struct {
+    const char *correct;
+    const char **typos;
+} KeywordFix;
+
+static KeywordFix keyword_fixes[] = {
+    {"Level", (const char*[]){"Levl", "Lvl", "level", NULL}},
+    {"Location", (const char*[]){"Locaton", "Locatin", "location", NULL}},
+    {"Characters", (const char*[]){"Chracters", "Characers", "characters", NULL}},
+    {NULL, NULL}
+};
+
 // Helper functions
 static char* trim(char *s) {
     while (*s && isspace(*s)) s++;
@@ -17,61 +29,40 @@ static char* trim(char *s) {
     return s;
 }
 
-// Helper: case-insensitive string compare
-static int strcasecmp_partial(const char *s1, const char *s2, size_t len) {
-    for (size_t i = 0; i < len; i++) {
-        if (tolower(s1[i]) != tolower(s2[i])) return 1;
+// Levenshtein distance function
+// Source: https://en.wikibooks.org/wiki/Algorithm_Implementation/Strings/Levenshtein_distance#C
+static int levenshtein_distance(const char *s1, const char *s2) {
+    int len1 = strlen(s1), len2 = strlen(s2);
+    int matrix[len1 + 1][len2 + 1];
+
+    for (int i = 0; i <= len1; i++) matrix[i][0] = i;
+    for (int j = 0; j <= len2; j++) matrix[0][j] = j;
+
+    for (int i = 1; i <= len1; i++) {
+        for (int j = 1; j <= len2; j++) {
+            const int cost = (tolower(s1[i - 1]) == tolower(s2[j - 1])) ? 0 : 1;
+            matrix[i][j] = (matrix[i - 1][j] + 1 < matrix[i][j - 1] + 1) ?
+                           matrix[i - 1][j] + 1 : matrix[i][j - 1] + 1;
+            if (matrix[i][j] > matrix[i - 1][j - 1] + cost)
+                matrix[i][j] = matrix[i - 1][j - 1] + cost;
+        }
     }
-    return 0;
+    return matrix[len1][len2];
 }
 
-// Helper: check if name is a typo of a character name
-static const char* find_similar_character(const char *name, const char *characters, char *correct_name, const size_t max_len) {
-    if (!characters || !name);
-
-    char chars_copy[1024];
-    strncpy(chars_copy, characters, sizeof(chars_copy) - 1);
-    chars_copy[sizeof(chars_copy) - 1] = '\0';
-
-    char *token = strtok(chars_copy, ",");
-    while (token) {
-        // Trim whitespace
-        while (*token && isspace(*token)) token++;
-        char *end = token + strlen(token) - 1;
-        while (end > token && isspace(*end)) *end-- = '\0';
-
-        // Check if it's a typo
-        const size_t len_in = strlen(name);
-        const size_t len_exp = strlen(token);
-
-        // Too different in length
-        if (len_in < len_exp - 2 || len_in > len_exp + 2) {
-            token = strtok(NULL, ",");
-            continue;
+// Generalized function to find similar string from candidates
+static const char* find_similar(const char *input, const char **candidates, char *correct, size_t max_len) {
+    for (int i = 0; candidates[i]; i++) {
+        const char *cand = candidates[i];
+        const int dist = levenshtein_distance(input, cand);
+        const int len_in = strlen(input);
+        const int len_cand = strlen(cand);
+        // Allow small differences, but not exact match
+        if (dist <= 1 && !(len_in == len_cand && strcasecmp(input, cand) == 0)) {
+            strncpy(correct, cand, max_len - 1);
+            correct[max_len - 1] = '\0';
+            return correct;
         }
-
-        // Case-insensitive exact match is not a typo
-        if (len_in == len_exp && strcasecmp_partial(name, token, len_in) == 0) {
-            token = strtok(NULL, ",");
-            continue;
-        }
-
-        // Count matching characters
-        int matches = 0;
-        size_t min_len = len_in < len_exp ? len_in : len_exp;
-        for (size_t i = 0; i < min_len; i++) {
-            if (tolower(name[i]) == tolower(token[i])) matches++;
-        }
-
-        // If more than 60% match, it's probably a typo
-        const int threshold = (len_exp <= 4) ? 20 : 60;
-        if ((matches * 100 / len_exp) > threshold) {
-            strncpy(correct_name, token, max_len - 1);
-            correct_name[max_len - 1] = '\0';
-            return correct_name;
-        }
-
-        token = strtok(NULL, ",");
     }
     return NULL;
 }
@@ -79,33 +70,28 @@ static const char* find_similar_character(const char *name, const char *characte
 // Check if header word is a typo of Scene/Dialog
 static const char* find_similar_header(const char *word, char *correct_word, size_t max_len) {
     const char *keywords[] = {"Scene", "Dialog", NULL};
+    return find_similar(word, keywords, correct_word, max_len);
+}
 
-    for (int i = 0; keywords[i]; i++) {
-        const char *expected = keywords[i];
-        size_t len_in = strlen(word);
-        size_t len_exp = strlen(expected);
+// Helper: check if name is a typo of a character name
+static const char* find_similar_character(const char *name, const char *characters, char *correct_name, const size_t max_len) {
+    if (!characters || !name) return NULL;
 
-        // Too different in length
-        if (len_in < len_exp - 2 || len_in > len_exp + 2) continue;
+    char chars_copy[1024];
+    strncpy(chars_copy, characters, sizeof(chars_copy) - 1);
+    chars_copy[sizeof(chars_copy) - 1] = '\0';
 
-        // Case-insensitive exact match is not a typo
-        if (len_in == len_exp && strcasecmp_partial(word, expected, len_in) == 0) continue;
-
-        // Count matching characters
-        int matches = 0;
-        size_t min_len = len_in < len_exp ? len_in : len_exp;
-        for (size_t j = 0; j < min_len; j++) {
-            if (tolower(word[j]) == tolower(expected[j])) matches++;
-        }
-
-        // If more than 60% match, it's probably a typo
-        if ((matches * 100 / len_exp) > 60) {
-            strncpy(correct_word, expected, max_len - 1);
-            correct_word[max_len - 1] = '\0';
-            return correct_word;
-        }
+    const char *candidates[64];
+    int count = 0;
+    char *token = strtok(chars_copy, ",");
+    while (token && count < 63) {
+        trim(token);
+        candidates[count++] = token;
+        token = strtok(NULL, ",");
     }
-    return NULL;
+    candidates[count] = NULL;
+
+    return find_similar(name, candidates, correct_name, max_len);
 }
 
 // Try to fix a line and return the fixed version
@@ -168,8 +154,24 @@ static int fix_line(const char *original, char *fixed, int max_len, const char *
         }
     }
 
+    // Fix keyword typos
+    for (int k = 0; keyword_fixes[k].correct; k++) {
+        const char *correct = keyword_fixes[k].correct;
+        int correct_len = strlen(correct);
+        if (strncasecmp(original, correct, correct_len) == 0 && original[correct_len] == ':') continue;
+        for (int t = 0; keyword_fixes[k].typos[t]; t++) {
+            const char *typo = keyword_fixes[k].typos[t];
+            int typo_len = strlen(typo);
+            if (strncasecmp(original, typo, typo_len) == 0 && original[typo_len] == ':') {
+                const char *value = original + typo_len;
+                snprintf(fixed, max_len, "%s%s", correct, value);
+                return 1;
+            }
+        }
+    }
+
     // Fix missing space after colon in dialog: "Alan:Hello" -> "Alan: Hello"
-    char *colon = strchr(fixed, ':');
+    const char *colon = strchr(fixed, ':');
     char *meta = strchr(fixed, '{');
     if (colon && (!meta || colon < meta)) {
         if (*(colon + 1) != ' ' && *(colon + 1) != '\0') {
@@ -187,7 +189,7 @@ static int fix_line(const char *original, char *fixed, int max_len, const char *
     if (meta) {
         char *closing = strchr(meta, '}');
         if (closing) {
-            char *after = closing + 1;
+            const char *after = closing + 1;
             while (*after && isspace(*after)) after++;
             if (*after != '\0') {
                 // There's text after metadata - need to move it
@@ -290,7 +292,7 @@ char auto_fix(const char *filename) {
 
     if (fixes_count == 0) {
         // No auto-fixes possible, check if there are errors
-        char result = compile(filename, 0);
+        const char result = compile(filename, 0);
         if (result > 0) {
             printf("\033[1;31m✗ Auto-fix not possible, please fix manually\033[0m\n");
             return 1;
