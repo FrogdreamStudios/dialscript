@@ -1,0 +1,8 @@
+[Scene.1]
+Level: 1
+Location: Forest
+Characters: Alan, Beth
+
+[Dialog.1]
+Alan: This is a very long dialog line that should wrap to the next line properly with meta data! This is a very long dialog line that should wrap to the next line properly with meta data. {Emotion: happy}
+Beth: Short line. {Choice: 1}
