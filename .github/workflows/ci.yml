@@ -30,6 +30,4 @@ jobs:
         run: dotnet build --configuration Release --no-restore
         
       - name: Test with sample file
-        run: |
-          dotnet run --project . -- ${{ github.workspace }}/tests/test.ds
-        shell: bash
+        run: dotnet run --project . -- "${{ github.workspace }}/tests/test.ds"
