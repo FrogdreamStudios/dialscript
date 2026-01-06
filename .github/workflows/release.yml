@@ -1,75 +1,95 @@
-# Build and release binaries when a version tag is pushed.
 name: Release
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
-
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            name: linux
-            artifact: dialscript
-          - os: macos-latest
-            name: macos
-            artifact: dialscript
+          # Windows x64
           - os: windows-latest
-            name: windows
-            artifact: dialscript.exe
+            runtime: win-x64
+            artifact: dialscript-windows-x64.exe
+            
+          # Linux x64
+          - os: ubuntu-latest
+            runtime: linux-x64
+            artifact: dialscript-linux-x64
+            
+          # macOS x64 (Intel)
+          - os: macos-latest
+            runtime: osx-x64
+            artifact: dialscript-macos-x64
+            
+          # macOS ARM64 (Apple Silicon)
+          - os: macos-latest
+            runtime: osx-arm64
+            artifact: dialscript-macos-arm64
 
+    runs-on: ${{ matrix.os }}
+    
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure CMake
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build
-        run: cmake --build build --config Release
-
-      - name: Prepare artifact (Unix)
-        if: matrix.os != 'windows-latest'
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+          
+      - name: Restore dependencies
+        run: dotnet restore
+        
+      - name: Build and publish
         run: |
-          mkdir -p dist
-          cp build/${{ matrix.artifact }} dist/
-          cd dist && tar -czvf dialscript-${{ matrix.name }}.tar.gz ${{ matrix.artifact }}
-
-      - name: Prepare artifact (Windows)
+          dotnet publish -c Release -r ${{ matrix.runtime }} --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ./publish
+          
+      - name: Rename artifact (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          mkdir dist
-          copy build\Release\${{ matrix.artifact }} dist\
-          cd dist && powershell Compress-Archive -Path ${{ matrix.artifact }} -DestinationPath dialscript-${{ matrix.name }}.zip
-
+          Move-Item ./publish/dialscript.exe ./publish/${{ matrix.artifact }}
+        shell: pwsh
+        
+      - name: Rename artifact (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          mv ./publish/dialscript ./publish/${{ matrix.artifact }}
+          chmod +x ./publish/${{ matrix.artifact }}
+          
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dialscript-${{ matrix.name }}
-          path: dist/dialscript-${{ matrix.name }}.*
+          name: ${{ matrix.artifact }}
+          path: ./publish/${{ matrix.artifact }}
 
   release:
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
+    if: startsWith(github.ref, 'refs/tags/')
+    
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
-
+          path: ./artifacts
+          
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/dialscript-linux/dialscript-linux.tar.gz
-            artifacts/dialscript-macos/dialscript-macos.tar.gz
-            artifacts/dialscript-windows/dialscript-windows.zip
+            ./artifacts/dialscript-windows-x64.exe/dialscript-windows-x64.exe
+            ./artifacts/dialscript-linux-x64/dialscript-linux-x64
+            ./artifacts/dialscript-macos-x64/dialscript-macos-x64
+            ./artifacts/dialscript-macos-arm64/dialscript-macos-arm64
           generate_release_notes: true
-
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

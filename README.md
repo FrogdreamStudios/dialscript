@@ -2,27 +2,23 @@
 
 Experimental dialog scripting language for games.
 
-## Installation
+## Requirements
 
-### macOS / Linux
+- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+
+## Build and run
+
+### CLI
 
 ```bash
-git clone https://github.com/arsmotorin/dialscript.git
-cd dialscript
-mkdir build && cd build
-cmake .. && make
-sudo make install
-```
+# Build
+dotnet build
 
-### Windows
+# Run
+dotnet run -- tests/test.ds
 
-```powershell
-git clone https://github.com/arsmotorin/dialscript.git
-cd dialscript
-mkdir build && cd build
-cmake ..
-cmake --build . --config Release
-copy Release\dialscript.exe C:\Windows\
+# Run with verbose output
+dotnet run -- tests/test.ds --verbose
 ```
 
 ## Syntax
@@ -33,5 +29,18 @@ copy Release\dialscript.exe C:\Windows\
 | `[Dialog.N]` | Dialog block header                |
 | `Level`, `Location`, `Characters` | Scene metadata                     |
 | `Name: Text` | Dialog line                        |
-| `{Key: Value}` | Line metadata (will be in v.0.0.2) |
+| `{Key: Value}` | Line metadata                      |
 | `// comment` | Comment                            |
+
+## Example
+
+```
+[Scene.1]
+Level: 1
+Location: Forest
+Characters: Alan, Beth
+
+[Dialog.1]
+Alan: Hello there! {Emotion: happy}
+Beth: Hi Alan!
+```
