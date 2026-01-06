@@ -31,5 +31,5 @@ jobs:
         
       - name: Test with sample file
         run: |
-          dotnet run -- tests/test.ds
+          dotnet run --project . -- ${{ github.workspace }}/tests/test.ds
         shell: bash
