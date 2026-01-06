@@ -5,7 +5,7 @@ namespace DialScript;
 
 public class Program
 {
-    private const string Version = "0.0.1";
+    private const string Version = "0.0.2";
     
     public static int Main(string[] args)
     {
