@@ -1,0 +1,18 @@
+[Scene.1]
+Level: 1
+Location: Forest
+Characters: Alan, Beth
+
+[Dialog.1]
+Alan: Hello {Emotion: happy}
+Beth: Hi!
+
+[Dialog.2]
+Beth: How are you?
+Alan: I'm good, thanks {Emotion: grateful}
+Alan: What about you?
+Beth: I'm doing well too!
+Alan: Great to hear!
+Beth: Shall we proceed with our adventure? {Choices: Yes, No}
+Alan: Absolutely! {Choice: Yes}
+Beth: Maybe another time then... {Choice: No}
